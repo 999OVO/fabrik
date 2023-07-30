@@ -72,25 +72,11 @@ class Fab0725Spider(scrapy.Spider):
         type_tuple = response.meta['type_tuple']
         origin_url = response.meta['origin_url']
         item = dict()
-        item["delete_brand"] = ["fabrikstyle", "sexy", "free", "SALE", "Z Supply"]
-        item['origin_url_index'] = response.meta['origin_url_index']
-        # item['html_str_index'] = response.meta['html_str_index']
-        item["type_num"] = 3
         for one_type_index, one_type in enumerate(type_tuple, 1):
             item[f"type_{one_type_index}"] = one_type
 
-        driver = webdriver.Chrome()
-        driver.get(origin_url)
-        # driver.get("https://fabrikstyle.com/collections/dresses")
-        html_source = driver.page_source
-        html_source = etree.HTML(html_source)
-        product_list = html_source.xpath('//*[@id="shopify-block-a7c7c6d6-5bab-46b0-85e0-5eb057d3ddcd"]/div/div/div[3]/div[2]/div/div/div')
 
-    # pprint.pprint(response.text) 可以先打印下响应数据查看有是否我们要定位的内容
-    # product_list = response.xpath('//*[@id="shopify-block-a7c7c6d6-5bab-46b0-85e0-5eb057d3ddcd"]/div/div/div[3]/div[2]/div[1]/div') 无法直接定位，推测是动态加载，用re直接定位到js
-    # product_list = re.findall(r'const collectionAllProducts = ([\s\S]*?)];', response.text)
-    # product_list = json.loads(product_list[0] + ',')
-    # pprint.pprint(product_list)
+
 
         print(f'----{type_tuple}----数据总量：{len(product_list)}')
 
@@ -128,79 +114,6 @@ class Fab0725Spider(scrapy.Spider):
             return
 
         item["product_title"] = ' '.join(product_title.split(" ")[1:])
-        item["handle"] = product_data['handle']  # clara-printed-mini-dress
-
-        original_price = product_data['price']  # 7400
-        item["original_price"] = original_price / 100
-        item["Product_price"] = item["special_price"] = item["original_price"]
-        item["description"] = tree.xpath('//div[@id="tab1"]//text()')
-        item["description"] = ' '.join(item["description"])
-        p_desc = ' '.join(tree.xpath('//div[@id="tab1"]/p[1]//text()'))
-        item["description"] = item["description"].replace(p_desc, '')
-
-        for ele in response.xpath('//div[@id="tab1"]/p').extract():
-            if 'Please note, this item is final sale' in ele:
-                item["description"] = item["description"].replace(ele, '')
-        # 如果item字典中不存在该键，会引发“KeyError”，所以要用条件表达式捕获异常
-        item["description"] = process_cleaned_data(item["description"]).replace('\n', '') if item["description"] else ''
-        item["image_urls"] = product_data['images']
-        item["image_urls"] = ['https:' + ele.split('?')[0] for ele in item["image_urls"]]
-
-        item["option"] = list()
-        item["att_val_img"] = list()
-        group_dict = dict()
-        have_color_type_name = ''
-
-        products_list = product_data['options']
-        if len(products_list) == 1 and products_list[0] == 'Title':
-            products_list = []
-
-        if products_list:
-            for index, one_option_xpath in enumerate(products_list):
-                type_name = one_option_xpath
-                if not type_name:
-                    continue
-                type_name = type_name.split("_")[0].replace('-', ' ').replace('|', ' ').replace(':',
-                                                                                                '').replace('Choose a',
-                                                                                                            '').strip().capitalize()
-                if type_name == 'Color':
-                    type_name = 'Colors'
-                if type_name not in item["option"]:
-                    item["option"].append(type_name)
-                    type_name_index = item["option"].index(type_name)
-                    item[f"option{type_name_index + 1}_list"] = list()
-
-                type_name_index = item["option"].index(type_name)
-                item[f"option{index + 1}_list"] = list()
-
-                for e in product_data['variants']:
-                    types1 = e[f'option{(index + 1)}']
-                    types1 = types1.replace('-', ' ').replace('|', ' ').replace(':', ' ').replace('\n', ' ').replace(
-                        ',',
-                        ' ').replace(
-                        '=', ' ').strip()
-
-                    if types1 not in item[f"option{type_name_index + 1}_list"]:
-                        item[f"option{type_name_index +1 }_list"].append(types1)
-
-                        types2 = "0" # 初始化变量types2为0 逻辑是如果图像有颜色url，types2就为url，没有就为0
-                        if type_name == 'Colors':
-                            types_img = ''
-                            if e.get('featured_image'):
-                                types_img = e['featured_image']['src']
-
-                            if types_img:
-                                types2 = response.urljoin(types_img.replace('/50x50/', '/670x890/'))
-                                have_color_type_name = type_name
-                                group_dict[types1] = types2
-
-                        types = "|".join([type_name + ":" + types1 + "-10000-1-0-0-0-0", types2])
-                        item["att_val_img"].append(types)
-
-        if have_color_type_name:
-            item["option_image_urls_dict"] = {have_color_type_name: group_dict}
-
-        item['quantity'] = str(random.randint(100, 999))
         print(item)
 
 

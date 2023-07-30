@@ -58,10 +58,6 @@ class Opencard_302s_Pipeline(object):
                                    encoding='utf-8',
                                    newline='')
 
-        # crawler.spider.name: f_test,
-        # cls.file_prefixes = '-opencard-'
-        # cls.filename: 07-25
-        # cls.csv_file_handle = unit_test-opencard-0725.csv   D:\study-nn\nn\project\fab_test\fa_test\fa_test\spiders
         cls.fileheader = [
             'Product ID', 'Language', 'Stores', 'Stores id (0=Store;1=next if presemt) (1=2)',
             'Model', 'SKU', 'UPC', 'EAN',
@@ -125,19 +121,19 @@ class Opencard_302s_Pipeline(object):
             delete_brand = item.get("delete_brand")
         else:
             delete_brand = None
-        if ',' in item['image_urls']:
-            image_urls_list = item['image_urls'].split(',')
-            item['image_urls'] = ';'.join(image_urls_list)
-        # item["pd_img_list"] = ';'.join(item["pd_img_list"])
+        if ',' in item['other_image_urls']:
+            other_image_urls_list = item['other_image_urls'].split(',')
+            item['other_image_urls'] = ';'.join(other_image_urls_list)
+        item["pd_img_list"] = ';'.join(item["pd_img_list"])
         # 将other_image_urls从字符串变成列表，再根据索引拿到真实数据
-        if type(item['image_urls']) == str:
-            image_urls_list = item['image_urls'].split(';')
-            item['image_urls'] = ';'.join(image_urls_list)
-            image = image_urls_list[0]
+        if type(item['other_image_urls']) == str:
+            other_image_urls_list = item['other_image_urls'].split(';')
+            item['other_image_urls'] = ';'.join(other_image_urls_list)
+            image = other_image_urls_list[0]
         else:
-            image_urls_list = item['image_urls']
-            item['image_urls'] = ';'.join(image_urls_list)
-            image = image_urls_list[0]
+            other_image_urls_list = item['other_image_urls']
+            item['other_image_urls'] = ';'.join(other_image_urls_list)
+            image = other_image_urls_list[0]
 
         md5 = hashlib.md5()
         data = image.split('/')[-1].replace('.jpg', '') + item['product_title'] + item["categories_opencard"]
@@ -194,34 +190,30 @@ class Opencard_302s_Pipeline(object):
         return item
 
     def close_spider(self, spider):
-        self.csv_file_handle.close() # cls.csv_file_handle = unit_test-opencard-0725.csv   D:\study-nn\nn\project\fab_test\fa_test\fa_test\spiders
+        self.csv_file_handle.close()
         new_csv = pd.read_csv(self.csv_file_handle.name, encoding='utf8')
         excel_path = self.csv_file_handle.name.replace('.csv', '.xlsx')
 
+        # writer = pd.ExcelWriter(excel_path, engine='xlsxwriter', options={'strings_to_urls': False})
         writer = pd.ExcelWriter(excel_path, engine='xlsxwriter')
-        new_csv.to_excel(writer, index=False)
-        # writer.save()
+        new_csv.to_excel(writer, index=False, encoding='utf8')
+        writer.save()
         writer.close()
+
         self.opencardsZip(hashlib.sha1(to_bytes(spider.name)).hexdigest()[:6], excel_path)
 
-    def opencardsZip(self, image_id, excel_path):
-        name = self.csv_file_handle.name.replace('.csv', '').strip() # unit_test-opencard-0725
-        abs_path = os.getcwd()  # D:\study-nn\nn\project\fab_test\fa_test\fa_test  # filename = 07-25
-        # file_path = D:\study-nn\nn\project\fab_test\fa_test\fa_test\spiders\unit_test-opencard-0725
+    def opencardsZip(self,image_id,excel_path):
+        name = self.csv_file_handle.name.replace('.csv', '').strip()
+        abs_path = os.getcwd()
         file_path = abs_path + '\\' + self.csv_file_handle.name.rsplit('.', 1)[0]
 
         if os.path.exists(file_path + '\\images\\{}\\'.format(str(time.strftime("%Y", time.localtime())) + '-' + self.filename)):
             shutil.rmtree(file_path + '\\images\\{}\\'.format(str(time.strftime("%Y", time.localtime())) + '-' + self.filename))
-            time.sleep(1)
 
         os.makedirs(file_path + '\\images\\{}\\'.format(str(time.strftime("%Y", time.localtime())) + '-' + self.filename), 0o777)
-        # os.makedirs(abs_path + '\\images\\{}\\{}'.format(str(time.strftime("%Y", time.localtime())) + '-' + self.filename, image_id), 0o777)
 
-        shutil.copytree(
-            abs_path + '\\images\\{}\\{}'.format(str(time.strftime("%Y", time.localtime())) + '-' + self.filename,
-                                                 image_id),
-            file_path + '\\images\\{}\\{}'.format(str(time.strftime("%Y", time.localtime())) + '-' + self.filename,
-                                                  image_id))
+        shutil.copytree(abs_path + '\\images\\{}\\{}'.format(str(time.strftime("%Y", time.localtime())) + '-' + self.filename, image_id),
+                    file_path + '\\images\\{}\\{}'.format(str(time.strftime("%Y", time.localtime())) + '-' + self.filename, image_id))
 
         opencard_zip = zipfile.ZipFile(f'{name}({self.time - 1}条).zip', 'w')
         for path, dirnames, filenames in os.walk(file_path):
@@ -230,8 +222,6 @@ class Opencard_302s_Pipeline(object):
                 opencard_zip.write(os.path.join(path, filename), os.path.join(fpath, filename))
 
         opencard_zip.write(self.csv_file_handle.name, compress_type=zipfile.ZIP_DEFLATED)
-        opencard_zip.write(self.csv_file_handle.name.replace('csv', 'xlsx'), compress_type=zipfile.ZIP_DEFLATED)
-        opencard_zip.close()
 
     def csvOpTAbantecart(self):
         reader = csv.DictReader(open(self.csv_file_handle.name, encoding='utf8'))
@@ -342,7 +332,7 @@ class Opencard_302s_Pipeline(object):
 
         wr.writerow(fileHeaders)
 
-        reader = csv.DictReader(open(self.csv_file_handle.name, encoding='utf-8'))
+        reader = csv.DictReader(open(self.csv_file_hanle.name, encoding='utf-8'))
         count_1 = 1
         for li in reader:
 
@@ -542,3 +532,10 @@ class OthersImagesPipeline(ImagesPipeline):
         image_path = "/".join([self.TIME, spider_name, image_guid])
         return '%s.jpg' % (image_path + "_" + str(int(request.meta["index2"]) + 100))
 
+
+
+
+
+class FaTestPipeline:
+    def process_item(self, item, spider):
+        return item

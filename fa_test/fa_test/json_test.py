@@ -7190,105 +7190,108 @@ product_list = data['products']
 item = dict()
 
 for product in product_list:
-    product_title = product.get('title')
-    print(f'product_title:{product_title}')
+	product_title = product.get('title')
+	print(f'product_title:{product_title}')
 
 
-    item["product_title"] = ' '.join(product_title.split(' ')[1:])  # 即从第二个元素开始取
-    item["handle"] = product.get('handle')  # clara-printed-mini-dress
-    original_price = product.get('price_max')  # 7400
-    item["original_price"] = original_price
-    item["Product_price"] = item["special_price"] = item["original_price"]
-    # description结构复杂，用响应的xpath路径，而非js，可以避免转义字符、空白、编码等问题
-    item["description"] = product.get('body_html')
-    # # 去掉所有产品描述的第一大段
-    # item["description"] = item["description"][1:]
+	item["product_title"] = ' '.join(product_title.split(' ')[1:])  # 即从第二个元素开始取
+	item["handle"] = product.get('handle')  # clara-printed-mini-dress
+	original_price = product.get('price_max')  # 7400
+	item["original_price"] = original_price
+	item["Product_price"] = item["special_price"] = item["original_price"]
+	# description结构复杂，用响应的xpath路径，而非js，可以避免转义字符、空白、编码等问题
+	item["description"] = product.get('body_html')
+	# # 去掉所有产品描述的第一大段
+	# item["description"] = item["description"][1:]
 
-    for ele in item["description"]:
-        # 去掉产品描述中“Please note, this item is final sale”句段
-        if 'Please note, this item is final sale' in ele:
-            item["description"] = item["description"].replace(ele, '')
+	for ele in item["description"]:
+		# 去掉产品描述中“Please note, this item is final sale”句段
+		if 'Please note, this item is final sale' in ele:
+			item["description"] = item["description"].replace(ele, '')
 
-    print(f'description:{item["description"]}')
+	print(f'description:{item["description"]}')
 
-    # item["pd_img_list"] = [response.urljoin(ele[" src"]) for ele in
-    #                        BeautifulSoup(item['description'], "lxml").find_all('img')]  现在description里已经没有img标签了
+	# item["pd_img_list"] = [response.urljoin(ele[" src"]) for ele in
+	#                        BeautifulSoup(item['description'], "lxml").find_all('img')]  现在description里已经没有img标签了
 
-    # item["other_image_urls"] = product_data['images']
-    # item["other_image_urls"] = ['https:' + ele.split('?')[0] for ele in item["other_image_urls"]]
+	# item["other_image_urls"] = product_data['images']
+	# item["other_image_urls"] = ['https:' + ele.split('?')[0] for ele in item["other_image_urls"]]
 
-    product_image_urls = product.get('images', [])  # images中保存了商品的所有图片链接，清洗后进行保存
-    item["image_urls"] = [value for key, value in product_image_urls.items() if key.isdigit()]
-    print(f'image_urls:{item["image_urls"]}')
+	product_image_urls = product.get('images', [])  # images中保存了商品的所有图片链接，清洗后进行保存
+	item["image_urls"] = [value for key, value in product_image_urls.items() if key.isdigit()]
+	print(f'image_urls:{item["image_urls"]}')
 
-    item["option"] = list()  # 此时是个空列表，后续会变成option: ['Colors', 'Size']
-    item["att_val_img"] = list()  # 属性值
-    group_dict = dict()  # 建立一个空字典group_dict
-    have_color_type_name = ''
-    # 目标：option': ['Colors', 'Size']
-    products_list = product.get('options_with_values')
-    if len(products_list) == 1 and products_list[0] == 'Title':
-        products_list = []
+	item["option"] = list()  # 此时是个空列表，后续会变成option: ['Colors', 'Size']
+	item["att_val_img"] = list()  # 属性值
+	group_dict = dict()  # 建立一个空字典group_dict
+	have_color_type_name = ''
+	# 目标：option': ['Colors', 'Size']
+	products_list = product.get('options_with_values')
+	if len(products_list) == 1 and products_list[0] == 'Title':
+		products_list = []
 
-    if products_list:
-        for index, one_option in enumerate(products_list):
-            type_name = one_option
-            print(f'type_name:{type_name}')
-            print(f'products_list:{products_list}')
-            if not type_name:
-                continue  # 跳过options为空的情况
-            type_name = type_name.get('name')
-            if type_name == 'Color':
-                type_name = 'Colors'
-            if type_name not in item["option"]:
-                item["option"].append(type_name)  # 给item["option"]添加数据 目标：option': ['Colors', 'Size']
-                print(f'option:"{item["option"]}')
-                # .index() 是列表对象的方法调用，搜索列表中第一次出现的元素type_name，如果找到，返回元素在列表中的索引值
-                type_name_index = item["option"].index(type_name)
-                print(f'type_name_index:{type_name_index}')  # check index right
-                item[f"option{type_name_index + 1}_list"] = list()
-                print(
-                    f'option{type_name_index + 1}_list:{item[f"option{type_name_index + 1}_list"]}')  # check option_list right
+	if products_list:
+		for index, option in enumerate(products_list):
+			type_name = option.get('name')
 
-            type_name_index = item["option"].index(type_name)  # 已有对象，执行相同操作获得索引
-            print(f'type_name_index:{type_name_index}')
-            # 目标为option1_list': ['white dustblue'], 'option2_list': ['xs', 's', 'm', 'l', 'xl'],
-            item[f"option{index + 1}_list"] = list()
-            print(f'option{type_name_index + 1}_list:{item[f"option{type_name_index + 1}_list"]}')
-            # 进入不同尺码进行处理
-            for e in product.get('variants'):
-                types1 = e.get('merged_options')[0]  # types1 = e[option(1)] = MULTI
-                print(f'types1:{types1}')
-                # types1 = types1.replace('-', ' ').replace('|', ' ').replace(':', ' ').replace('\n', ' ').replace(
-                #     ',',
-                #     ' ').replace(
-                #     '=', ' ').strip()
+			print(index, f'type_name:{type_name}')
+			print(f'products_list:{products_list}')
+			if not type_name:
+				continue  # 跳过options为空的情况
 
-                if types1 not in item[f"option{type_name_index + 1}_list"]:
-                    item[f"option{type_name_index + 1}_list"].append(types1)
-                    print(f'option{type_name_index + 1}_list:{item[f"option{type_name_index + 1}_list"]}')
-                    #  'option1_list': ['white dustblue'],
-                    #  'option2_list': ['xs', 's', 'm', 'l', 'xl'],
+			if type_name == 'color':
+				type_name = 'Colors'
+				print(f'type_name:{type_name}')
 
-                    types2 = "0"  # 初始化变量types2为0 逻辑是如果图像有颜色url，types2就为url，没有就为0
-                    if type_name == 'Colors':
-                        types_img = ''  # 初始化变量types_img为空字符串
-                        # 如果有featured_image就获取图片下载路径
-                        if e.get('featured_image'):
-                            types_img = e['featured_image']['src']  # featured_image: null
+			if type_name not in item["option"]:
+				item["option"].append(type_name)  # 给item["option"]添加数据 目标：option': ['Colors', 'Size']
+				print(f'option:"{item["option"]}')
+				# .index() 是列表对象的方法调用，搜索列表中第一次出现的元素type_name，如果找到，返回元素在列表中的索引值
+				type_name_index = item["option"].index(type_name)
+				print(f'type_name_index:{type_name_index}')  # check index right
+				item[f"option{type_name_index + 1}_list"] = list()
 
+			type_name_index = item["option"].index(type_name)  # 已有对象，执行相同操作获得索引
+			print(f'type_name_index:{type_name_index}')
+			# 目标为option1_list': ['white dustblue'], 'option2_list': ['xs', 's', 'm', 'l', 'xl'],
+			item[f"option{index + 1}_list"] = list()
+			print(f'option{type_name_index + 1}_list:{item[f"option{type_name_index + 1}_list"]}')
+			# 进入不同尺码进行处理
+			for e in product.get('variants'):
+				types1_list = e.get('merged_options')  # types1 = e[option(1)] = MULTI
+				print(f'types1_list:{types1_list}')
+				types1 = types1_list[0].split(',')
 
+				for tp in types1:
+					print(f'types1:{type}')
+					# types1 = types1.replace('-', ' ').replace('|', ' ').replace(':', ' ').replace('\n', ' ').replace(
+					#     ',',
+					#     ' ').replace(
+					#     '=', ' ').strip()
 
-                    types = "|".join([type_name + ":" + types1 + "-10000-1-0-0-0-0", types2])
-                    # ['Colors:white dustblue-10000-1-0-0-0-0|0','Size:xs-10000-1-0-0-0-0|0']
-                    item["att_val_img"].append(types)  # 将types添加进att_val_img
-                    print(f'att_val_img:{item["att_val_img"]}')
+					if tp not in item[f"option{type_name_index + 1}_list"]:
+						item[f"option{type_name_index + 1}_list"].append(tp)
+						print(f'option{type_name_index + 1}_list:{item[f"option{type_name_index + 1}_list"]}')
+						#  'option1_list': ['white dustblue'],
+						#  'option2_list': ['xs', 's', 'm', 'l', 'xl'],
 
-    if have_color_type_name:
-        # 处理完所有数据后，如果变量 `have_color_type_name` 有值（即如果在处理过程中遇到 'Colors'）
-        # 则会创建以 `have_color_type_name` 为键的字典 , `group_dict` 作为值
-        item["option_image_urls_dict"] = {have_color_type_name: group_dict}  # {Colors: {MULTI: url}}
+						types2 = "0"  # 初始化变量types2为0 逻辑是如果图像有颜色url，types2就为url，没有就为0
+						if type_name == 'Colors':
+							types_img = ''  # 初始化变量types_img为空字符串
+							# 如果有featured_image就获取图片下载路径
+							if e.get('featured_image'):
+								types_img = e['featured_image']['src']  # featured_image: null
 
-    item['quantity'] = str(random.randint(100, 999))  # 库存用三位数随机
-    print(item)
+						types = "|".join([type_name + ":" + tp + "-10000-1-0-0-0-0", types2])
+						# ['Colors:white dustblue-10000-1-0-0-0-0|0','Size:xs-10000-1-0-0-0-0|0']
+						item["att_val_img"].append(types)  # 将types添加进att_val_img
+						print(f'att_val_img:{item["att_val_img"]}')
+
+	if have_color_type_name:
+		# 处理完所有数据后，如果变量 `have_color_type_name` 有值（即如果在处理过程中遇到 'Colors'）
+		# 则会创建以 `have_color_type_name` 为键的字典 , `group_dict` 作为值
+		item["option_image_urls_dict"] = {have_color_type_name: group_dict}  # {Colors: {MULTI: url}}
+
+	item['quantity'] = str(random.randint(100, 999))  # 库存用三位数随机
+	print(item)
 
